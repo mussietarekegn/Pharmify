@@ -9,6 +9,9 @@ from rest_framework.decorators import api_view,permission_classes,action
 from rest_framework.response import Response
 from django.conf import settings
 import google.generativeai as genai
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your views here.
 
@@ -129,7 +132,7 @@ def ai_guide(request):
 
     if not symptoms:
         return Response(
-            {'error': 'Symtoms are required'},
+            {'error': 'Symptoms are required'},
             status=400
         )
     
@@ -162,4 +165,52 @@ def ai_guide(request):
         return Response(
             {"error":str(e)},
             status=500
+        )
+
+@api_view(['POST'])
+def google_login(request):
+    token = request.data.get('token')
+
+    if not token:
+        return Response(
+            {"error": "Token is required"},
+            status = 400
+        )
+    
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            requests.Request(),
+            settings.GOOGLE_CLIENT_ID
+        )
+
+        email = idinfo.get('email')
+        name = idinfo.get('name')
+
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username':email,
+                'first_name':name,
+                'role': 'customer'
+            }
+        )
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'email': user.email,
+                'username': user.username,
+                'role': user.role,
+            }
+
+        })
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=400
         )
