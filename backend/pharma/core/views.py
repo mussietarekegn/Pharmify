@@ -7,6 +7,8 @@ from .permissions import IsOwner,IsVerifiedOwner
 from django.db.models import Q
 from rest_framework.decorators import api_view,permission_classes,action
 from rest_framework.response import Response
+from django.conf import settings
+import google.generativeai as genai
 
 # Create your views here.
 
@@ -117,3 +119,47 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
         return Response({"message": "Notification marked as read"})
 
+
+genai.configure(api_key=settings.GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+@api_view(['POST'])
+def ai_guide(request):
+    symptoms = request.data.get('symptoms')
+
+    if not symptoms:
+        return Response(
+            {'error': 'Symtoms are required'},
+            status=400
+        )
+    
+    prompt = f"""
+    You are a medical assistant AI.
+
+    The user symptoms are:
+    {symptoms}
+
+    Give:
+    1. Possible condition
+    2. Recommended medicine category
+    3. Whether hospital visit is recommended
+
+    IMPORTANT:
+    - This is not professional medical advice.
+    - Encourage doctor consultation for serious symptoms.
+    - Keep response short and clear.
+    """
+
+    try:
+
+        response = model.generate_content(prompt)
+
+        return Response({
+            "response": response.text
+        })
+    
+    except Exception as e:
+        return Response(
+            {"error":str(e)},
+            status=500
+        )
