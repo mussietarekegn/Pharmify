@@ -7,8 +7,3 @@ env/
 media/
 .vscode/
 .DS_Store
-DB_NAME=neondb
-DB_USER=neondb_owner
-DB_PASSWORD=your_password
-DB_HOST=ep-holy-king-amxcz2k3-pooler.c-5.us-east-1.aws.neon.tech
-DB_PORT=5432
