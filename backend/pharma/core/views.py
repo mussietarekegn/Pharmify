@@ -1,11 +1,11 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Medicine
-from .serializers import MedicineSerializer
+from .models import Medicine,Notification,User
+from .serializers import MedicineSerializer,NotificationSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .permissions import IsOwner,IsVerifiedOwner
 from django.db.models import Q
-from rest_framework.decorators import api_view,permission_classes
+from rest_framework.decorators import api_view,permission_classes,action
 from rest_framework.response import Response
 
 # Create your views here.
@@ -53,7 +53,7 @@ class MedicineViewSet(viewsets.ModelViewSet):
 
         if location:
              queryset = queryset.filter(pharmacy__location__icontains=location)
-             
+
         elif user.is_authenticated and user.latitude and user.longitude:
             queryset = queryset.filter(pharmacy__location__icontains="Addis")
         
@@ -90,5 +90,30 @@ class MedicineViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         pharmacy = self.request.user.pharmacy
-        serializer.save(pharmacy=pharmacy)
+        medicine = serializer.save(pharmacy=pharmacy)
+        
+        customers = User.objects.filter(role='customer')
+
+        notifications = [
+            Notification(user=user, message=f"New medicine added: {medicine.name}")
+            for user in customers
+        ]
+        Notification.objects.bulk_create(notifications)
     
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+    
+
+    @action(detail=True, methods=['POST'])
+    def mark_as_read(self,request,pk=None):
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+
+        return Response({"message": "Notification marked as read"})
+
