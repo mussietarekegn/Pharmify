@@ -12,10 +12,21 @@ class PharmacySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class MedicineSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Medicine
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
+    
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+
+        if obj.image and request:
+            return request.build_absolute_url(obj.image.url)
+
+        return None
+    
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:

@@ -44,6 +44,9 @@ class MedicineViewSet(viewsets.ModelViewSet):
     queryset = Medicine.objects.all()
     serializer_class = MedicineSerializer
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
     def get_queryset(self):
         queryset = Medicine.objects.all()
 
