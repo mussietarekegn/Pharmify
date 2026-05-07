@@ -7,9 +7,23 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'role', 'phone']
 
 class PharmacySerializer(serializers.ModelSerializer):
+    owner = UserSerializer(read_only=True)
+    license_document_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Pharmacy
         fields = '__all__'
+    
+    def get_license_document_url(self, obj):
+        request = self.context.get('request')
+
+        if obj.license_document and request:
+            return request.build_absolute_uri(
+                obj.license_document.url
+            )
+    
+        return None
+
 
 class MedicineSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()

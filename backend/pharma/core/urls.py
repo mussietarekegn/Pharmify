@@ -1,11 +1,12 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard
+from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet
 
 
 router = DefaultRouter()
 router.register(r'medicines',MedicineViewSet)
 router.register(r'notifications', NotificationViewSet)
+router.register(r'pharmacies', PharmacyViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

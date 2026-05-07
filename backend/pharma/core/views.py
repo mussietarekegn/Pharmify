@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Medicine,Notification,User
-from .serializers import MedicineSerializer,NotificationSerializer
+from .models import Medicine,Notification,User,Pharmacy
+from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .permissions import IsOwner,IsVerifiedOwner
 from django.db.models import Q
@@ -14,6 +14,7 @@ from google.auth.transport import requests
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Count
 from .pagination import MedicinePagination
+
 # Create your views here.
 
 DEFAULT_LAT = 9.0320
@@ -129,6 +130,22 @@ class NotificationViewSet(viewsets.ModelViewSet):
         return Response({"message": "Notification marked as read"})
 
 
+class PharmacyViewSet(viewsets.ModelViewSet):
+    queryset = Pharmacy.objects.select_related('owner').all()
+    serializer_class = PharmacySerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def get_permissions(self):
+        if self.action in ['create','update','partial_update','destroy']:
+            return [IsOwner()]
+        
+        return [AllowAny()]
+
+    def perform_create(self,serializer):
+        serializer.save(owner=self.request.user)
+    
 genai.configure(api_key=settings.GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
