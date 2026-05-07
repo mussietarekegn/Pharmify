@@ -13,6 +13,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Count
+from .pagination import MedicinePagination
 # Create your views here.
 
 DEFAULT_LAT = 9.0320
@@ -41,8 +42,9 @@ def update_location(request):
     })
 
 class MedicineViewSet(viewsets.ModelViewSet):
-    queryset = Medicine.objects.all()
+    queryset = Medicine.objects.select_related('pharmacy').all()
     serializer_class = MedicineSerializer
+    pagination_class = MedicinePagination
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -110,6 +112,7 @@ class MedicineViewSet(viewsets.ModelViewSet):
     
 
 class NotificationViewSet(viewsets.ModelViewSet):
+    queryset = Notification.objects.all()
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
 
@@ -226,7 +229,7 @@ def owner_dashboard(request):
     medicines = Medicine.objects.filter(pharmacy=pharmacy)
     total_medicines = medicines.count()
     latest_medicines = medicines.order_by('-created_at')[:5]
-    categories = medicines.value('category').annotate(
+    categories = medicines.values('category').annotate(
         total=Count('category')
     )
 

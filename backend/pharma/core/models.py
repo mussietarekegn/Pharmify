@@ -14,7 +14,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-    
+
     def __str__(self):
         return self.username
 
@@ -40,6 +40,13 @@ class Medicine(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['category']),
+            models.Index(fields=['price']),
+        ]
 
     def __str__(self):
         return self.name
