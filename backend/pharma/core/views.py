@@ -12,7 +12,7 @@ import google.generativeai as genai
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.db.models import Count
 # Create your views here.
 
 DEFAULT_LAT = 9.0320
@@ -217,3 +217,32 @@ def google_login(request):
             {"error": str(e)},
             status=400
         )
+    
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsVerifiedOwner])
+def owner_dashboard(request):
+    pharmacy = request.user.pharmacy
+    medicines = Medicine.objects.filter(pharmacy=pharmacy)
+    total_medicines = medicines.count()
+    latest_medicines = medicines.order_by('-created_at')[:5]
+    categories = medicines.value('category').annotate(
+        total=Count('category')
+    )
+
+    return Response({
+        "pharmacy": pharmacy.name,
+        "location": pharmacy.location,
+        "verified": pharmacy.is_verified,
+        "total_medicines": total_medicines,
+        "latest_medicines": [
+            {
+                "id": medicine.id,
+                "name": medicine.name,
+                "price": medicine.price,
+                "category": medicine.category,
+            }
+            for medicine in latest_medicines
+        ],
+        "categories": list(categories)
+    })
