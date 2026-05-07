@@ -12,3 +12,8 @@ class IsVerifiedOwner(BasePermission):
             hasattr(request.user, 'pharmacy') and
             request.user.pharmacy.is_verified
         )
+
+class IsAdmin(BasePermission):
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'admin'

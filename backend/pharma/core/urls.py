@@ -1,6 +1,6 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet,my_favorites,toggle_favorite,create_order,my_orders,pharmacy_orders,add_to_cart,view_cart,remove_from_cart
+from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet,my_favorites,toggle_favorite,create_order,my_orders,pharmacy_orders,add_to_cart,view_cart,remove_from_cart,medicine_reviews,add_review,admin_dashboard,verify_pharmacy,all_orders,recent_activity
 
 
 router = DefaultRouter()
@@ -22,5 +22,11 @@ urlpatterns = [
     path('cart/', view_cart),
     path('cart/remove/<int:item_id>/', remove_from_cart),
     path('orders/create/', create_order),
+    path('reviews/add/', add_review),
+    path('reviews/<int:medicine_id>/', medicine_reviews),
+    path('admin/dashboard/', admin_dashboard),
+    path('admin/verify-pharmacy/<int:pharmacy_id>/', verify_pharmacy),
+    path('admin/orders/', all_orders),
+    path('admin/recent-activity/', recent_activity),
 ]
 

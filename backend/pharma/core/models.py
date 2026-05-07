@@ -36,7 +36,7 @@ class Medicine(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=100)
     image = models.ImageField(upload_to='medicines/')
-    
+    stock = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -157,3 +157,38 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f"{self.medicine.name} x {self.quantity}"
+    
+
+class Review(models.Model):
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+
+    medicine = models.ForeignKey(
+        Medicine,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+
+    rating = models.PositiveIntegerField(
+        choices=[
+            (1,1),
+            (2,2),
+            (3,3),
+            (4,4),
+            (5,5),
+            ]
+        )
+
+    comment = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'medicine')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.medicine.name}"

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Pharmacy, Medicine, Notification,Favorite,Order,OrderItem,Cart,CartItem
+from .models import User, Pharmacy, Medicine, Notification,Favorite,Order,OrderItem,Cart,CartItem,Review
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,6 +27,8 @@ class PharmacySerializer(serializers.ModelSerializer):
 
 class MedicineSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    reviews_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Medicine
@@ -40,6 +42,21 @@ class MedicineSerializer(serializers.ModelSerializer):
             return request.build_absolute_url(obj.image.url)
 
         return None
+    
+    def get_average_rating(self, obj):
+
+        reviews = obj.reviews.all()
+
+        if reviews.exists():
+
+            total = sum(review.rating for review in reviews)
+
+            return round(total / reviews.count(), 1)
+
+        return 0
+    
+    def get_reviews_count(self, obj):
+        return obj.reviews.count()
     
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -69,7 +86,7 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = '__all__'
-        
+
 
 class CartItemSerializer(serializers.ModelSerializer):
 
@@ -87,3 +104,29 @@ class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
         fields = '__all__'
+    total_price = serializers.SerializerMethodField()
+    
+    def get_total_price(self, obj):
+
+        total = 0
+
+        for item in obj.items.all():
+            total += item.medicine.price * item.quantity
+
+        return total
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Review
+        fields = '__all__'
+
+    def validate_rating(self, value):
+
+        if value < 1 or value > 5:
+            raise serializers.ValidationError(
+                "Rating must be between 1 and 5"
+            )
+
+        return value

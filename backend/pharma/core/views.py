@@ -1,9 +1,9 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Medicine,Notification,User,Pharmacy,Favorite,OrderItem,Order,Cart,CartItem
-from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer,CartItem,CartSerializer
+from .models import Medicine,Notification,User,Pharmacy,Favorite,OrderItem,Order,Cart,CartItem,Review
+from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer,CartSerializer,ReviewSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
-from .permissions import IsOwner,IsVerifiedOwner
+from .permissions import IsOwner,IsVerifiedOwner,IsAdmin
 from django.db.models import Q
 from rest_framework.decorators import api_view,permission_classes,action
 from rest_framework.response import Response
@@ -14,6 +14,7 @@ from google.auth.transport import requests
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Count
 from .pagination import MedicinePagination
+from rest_framework.exceptions import PermissionDenied
 
 # Create your views here.
 
@@ -51,7 +52,11 @@ class MedicineViewSet(viewsets.ModelViewSet):
         return {'request': self.request}
 
     def get_queryset(self):
-        queryset = Medicine.objects.all()
+        queryset = Medicine.objects.select_related(
+                'pharmacy'
+            ).prefetch_related(
+                'reviews'
+            )
 
         search = self.request.query_params.get('search')
         min_price = self.request.query_params.get('min_price')
@@ -110,6 +115,26 @@ class MedicineViewSet(viewsets.ModelViewSet):
             for user in customers
         ]
         Notification.objects.bulk_create(notifications)
+
+    def perform_update(self, serializer):
+
+        medicine = self.get_object()
+
+        if medicine.pharmacy.owner != self.request.user:
+            raise PermissionDenied(
+                "You do not own this medicine"
+            )
+
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+
+        if instance.pharmacy.owner != self.request.user:
+            raise PermissionDenied(
+                "You do not own this medicine"
+            )
+
+        instance.delete()
     
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -145,6 +170,26 @@ class PharmacyViewSet(viewsets.ModelViewSet):
 
     def perform_create(self,serializer):
         serializer.save(owner=self.request.user)
+
+    def perform_update(self, serializer):
+
+        pharmacy = self.get_object()
+
+        if pharmacy.owner != self.request.user:
+            raise PermissionDenied(
+                "You do not own this pharmacy"
+            )
+
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+
+        if instance.owner != self.request.user:
+            raise PermissionDenied(
+                "You do not own this pharmacy"
+            )
+
+        instance.delete()
     
 genai.configure(api_key=settings.GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
@@ -447,3 +492,165 @@ def remove_from_cart(request, item_id):
             {"error": "Item not found"},
             status=404
         )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_review(request):
+
+    medicine_id = request.data.get('medicine_id')
+    rating = request.data.get('rating')
+    comment = request.data.get('comment')
+
+    try:
+        medicine = Medicine.objects.get(id=medicine_id)
+
+    except Medicine.DoesNotExist:
+        return Response(
+            {"error": "Medicine not found"},
+            status=404
+        )
+    
+    if int(rating) < 1 or int(rating) > 5:
+        return Response(
+            {"error": "Rating must be between 1 and 5"},
+            status=400
+        )
+
+    review, created = Review.objects.update_or_create(
+        user=request.user,
+        medicine=medicine,
+        defaults={
+            'rating': rating,
+            'comment': comment
+        }
+    )
+
+    serializer = ReviewSerializer(review)
+
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def medicine_reviews(request, medicine_id):
+
+    reviews = Review.objects.filter(
+        medicine_id=medicine_id
+    ).order_by('-created_at')
+
+    serializer = ReviewSerializer(
+        reviews,
+        many=True
+    )
+
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_dashboard(request):
+
+    total_users = User.objects.count()
+
+    total_customers = User.objects.filter(
+        role='customer'
+    ).count()
+
+    total_owners = User.objects.filter(
+        role='owner'
+    ).count()
+
+    total_pharmacies = Pharmacy.objects.count()
+
+    verified_pharmacies = Pharmacy.objects.filter(
+        is_verified=True
+    ).count()
+
+    total_medicines = Medicine.objects.count()
+
+    total_orders = Order.objects.count()
+
+    total_sales = sum(
+        order.total_price for order in Order.objects.all()
+    )
+
+    return Response({
+        "total_users": total_users,
+        "total_customers": total_customers,
+        "total_owners": total_owners,
+        "total_pharmacies": total_pharmacies,
+        "verified_pharmacies": verified_pharmacies,
+        "total_medicines": total_medicines,
+        "total_orders": total_orders,
+        "total_sales": total_sales,
+    })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def verify_pharmacy(request, pharmacy_id):
+
+    try:
+        pharmacy = Pharmacy.objects.get(id=pharmacy_id)
+
+    except Pharmacy.DoesNotExist:
+        return Response(
+            {"error": "Pharmacy not found"},
+            status=404
+        )
+
+    pharmacy.is_verified = True
+    pharmacy.save()
+
+    return Response({
+        "message": "Pharmacy verified"
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def all_orders(request):
+
+    orders = Order.objects.all().order_by('-created_at')
+
+    serializer = OrderSerializer(
+        orders,
+        many=True
+    )
+
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def recent_activity(request):
+
+    latest_users = User.objects.order_by('-date_joined')[:5]
+
+    latest_orders = Order.objects.order_by('-created_at')[:5]
+
+    latest_medicines = Medicine.objects.order_by('-created_at')[:5]
+
+    return Response({
+        "latest_users": [
+            {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+            }
+            for user in latest_users
+        ],
+
+        "latest_orders": [
+            {
+                "id": order.id,
+                "user": order.user.username,
+                "total_price": order.total_price,
+                "status": order.status,
+            }
+            for order in latest_orders
+        ],
+
+        "latest_medicines": [
+            {
+                "id": medicine.id,
+                "name": medicine.name,
+                "price": medicine.price,
+            }
+            for medicine in latest_medicines
+        ]
+    })
