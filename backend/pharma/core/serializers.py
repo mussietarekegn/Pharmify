@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Pharmacy, Medicine, Notification,Favorite,Order,OrderItem
+from .models import User, Pharmacy, Medicine, Notification,Favorite,Order,OrderItem,Cart,CartItem
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -56,10 +56,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
 
-    medicine_detail = MedicineSerializer(
-        source='medicine',
-        read_only=True
-    )
+    medicine = MedicineSerializer(read_only=True)
 
     class Meta:
         model = OrderItem
@@ -71,4 +68,22 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
+        fields = '__all__'
+        
+
+class CartItemSerializer(serializers.ModelSerializer):
+
+    medicine = MedicineSerializer(read_only=True)
+
+    class Meta:
+        model = CartItem
+        fields = '__all__'
+
+    
+class CartSerializer(serializers.ModelSerializer):
+
+    items = CartItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Cart
         fields = '__all__'

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Medicine,Notification,User,Pharmacy,Favorite,OrderItem,Order
-from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer
+from .models import Medicine,Notification,User,Pharmacy,Favorite,OrderItem,Order,Cart,CartItem
+from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer,CartItem,CartSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .permissions import IsOwner,IsVerifiedOwner
 from django.db.models import Q
@@ -296,40 +296,45 @@ def my_favorites(request):
 @permission_classes([IsAuthenticated])
 def create_order(request):
 
-    items = request.data.get('items')
+    try:
+        cart = request.user.cart
 
-    if not items:
+    except Cart.DoesNotExist:
         return Response(
-            {"error": "No items provided"},
+            {"error": "Cart is empty"},
+            status=400
+        )
+
+    cart_items = cart.items.all()
+
+    if not cart_items.exists():
+        return Response(
+            {"error": "Cart is empty"},
             status=400
         )
 
     order = Order.objects.create(
-        user=request.user
+        user=request.user,
+        total_price=0
     )
 
-    total_price = 0
+    total = 0
 
-    for item in items:
-
-        medicine_id = item.get('medicine_id')
-        quantity = item.get('quantity', 1)
-
-        medicine = Medicine.objects.get(id=medicine_id)
-
-        item_total = medicine.price * quantity
+    for item in cart_items:
 
         OrderItem.objects.create(
             order=order,
-            medicine=medicine,
-            quantity=quantity,
-            price=medicine.price
+            medicine=item.medicine,
+            quantity=item.quantity,
+            price=item.medicine.price
         )
 
-        total_price += item_total
+        total += item.medicine.price * item.quantity
 
-    order.total_price = total_price
+    order.total_price = total
     order.save()
+
+    cart_items.delete()
 
     serializer = OrderSerializer(order)
 
@@ -367,3 +372,78 @@ def pharmacy_orders(request):
     )
 
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_to_cart(request):
+
+    medicine_id = request.data.get('medicine_id')
+    quantity = int(request.data.get('quantity', 1))
+
+    try:
+        medicine = Medicine.objects.get(id=medicine_id)
+
+    except Medicine.DoesNotExist:
+        return Response(
+            {"error": "Medicine not found"},
+            status=404
+        )
+
+    cart, created = Cart.objects.get_or_create(
+        user=request.user
+    )
+
+    cart_item, created = CartItem.objects.get_or_create(
+        cart=cart,
+        medicine=medicine
+    )
+
+    if not created:
+        cart_item.quantity += quantity
+    else:
+        cart_item.quantity = quantity
+
+    cart_item.save()
+
+    return Response({
+        "message": "Medicine added to cart"
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def view_cart(request):
+
+    cart, created = Cart.objects.get_or_create(
+        user=request.user
+    )
+
+    serializer = CartSerializer(
+        cart,
+        context={'request': request}
+    )
+
+    return Response(serializer.data)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_from_cart(request, item_id):
+
+    try:
+        item = CartItem.objects.get(
+            id=item_id,
+            cart__user=request.user
+        )
+
+        item.delete()
+
+        return Response({
+            "message": "Item removed"
+        })
+
+    except CartItem.DoesNotExist:
+        return Response(
+            {"error": "Item not found"},
+            status=404
+        )
