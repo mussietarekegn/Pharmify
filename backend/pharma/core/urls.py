@@ -1,6 +1,6 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet,my_favorites,toggle_favorite
+from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet,my_favorites,toggle_favorite,create_order,my_orders,pharmacy_orders
 
 
 router = DefaultRouter()
@@ -15,6 +15,9 @@ urlpatterns = [
     path('google-login/',google_login),
     path('owner/dashboard/', owner_dashboard),
     path('favorites/toggle/', toggle_favorite),
-    path('favorites/', my_favorites)
+    path('favorites/', my_favorites),
+    path('orders/create/', create_order),
+    path('orders/my/', my_orders),
+    path('orders/pharmacy/', pharmacy_orders),
 ]
 

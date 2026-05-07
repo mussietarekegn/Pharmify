@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Medicine,Notification,User,Pharmacy,Favorite
-from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer
+from .models import Medicine,Notification,User,Pharmacy,Favorite,OrderItem,Order
+from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .permissions import IsOwner,IsVerifiedOwner
 from django.db.models import Q
@@ -289,4 +289,81 @@ def toggle_favorite(request):
 def my_favorites(request):
     favorites = Favorite.objects.filter(user=request.user)
     serializer = FavoriteSerializer(favorites, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_order(request):
+
+    items = request.data.get('items')
+
+    if not items:
+        return Response(
+            {"error": "No items provided"},
+            status=400
+        )
+
+    order = Order.objects.create(
+        user=request.user
+    )
+
+    total_price = 0
+
+    for item in items:
+
+        medicine_id = item.get('medicine_id')
+        quantity = item.get('quantity', 1)
+
+        medicine = Medicine.objects.get(id=medicine_id)
+
+        item_total = medicine.price * quantity
+
+        OrderItem.objects.create(
+            order=order,
+            medicine=medicine,
+            quantity=quantity,
+            price=medicine.price
+        )
+
+        total_price += item_total
+
+    order.total_price = total_price
+    order.save()
+
+    serializer = OrderSerializer(order)
+
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_orders(request):
+
+    orders = Order.objects.filter(
+        user=request.user
+    ).order_by('-created_at')
+
+    serializer = OrderSerializer(
+        orders,
+        many=True
+    )
+
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsVerifiedOwner])
+def pharmacy_orders(request):
+
+    pharmacy = request.user.pharmacy
+
+    orders = Order.objects.filter(
+        items__medicine__pharmacy=pharmacy
+    ).distinct()
+
+    serializer = OrderSerializer(
+        orders,
+        many=True
+    )
+
     return Response(serializer.data)
