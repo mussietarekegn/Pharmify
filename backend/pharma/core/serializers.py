@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Pharmacy, Medicine, Notification
+from .models import User, Pharmacy, Medicine, Notification,Favorite
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -45,4 +45,11 @@ class MedicineSerializer(serializers.ModelSerializer):
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
+        fields = '__all__'
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    medicine_detail = MedicineSerializer(source='medicine', read_only=True)
+
+    class Meta:
+        model = Favorite
         fields = '__all__'

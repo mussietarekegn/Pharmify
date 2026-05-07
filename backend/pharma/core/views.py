@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Medicine,Notification,User,Pharmacy
-from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer
+from .models import Medicine,Notification,User,Pharmacy,Favorite
+from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .permissions import IsOwner,IsVerifiedOwner
 from django.db.models import Q
@@ -266,3 +266,27 @@ def owner_dashboard(request):
         ],
         "categories": list(categories)
     })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_favorite(request):
+    user = request.user
+    medicine_id = request.data.get('medicine_id')
+
+    favorite, created = Favorite.objects.get_or_create(
+        user=user,
+        medicine_id=medicine_id
+    )
+
+    if not created:
+        favorite.delete()
+        return Response({"message": "Removed from favorites"})
+
+    return Response({"message": "Added to favorites"})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_favorites(request):
+    favorites = Favorite.objects.filter(user=request.user)
+    serializer = FavoriteSerializer(favorites, many=True, context={'request': request})
+    return Response(serializer.data)
