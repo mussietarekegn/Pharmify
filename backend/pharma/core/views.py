@@ -367,12 +367,29 @@ def create_order(request):
 
     for item in cart_items:
 
+        if item.medicine.stock < item.quantity:
+            return Response(
+                {
+                    "error": f"Not enough stock for {item.medicine.name}"
+                },
+                status=400
+            )
+
         OrderItem.objects.create(
             order=order,
             medicine=item.medicine,
             quantity=item.quantity,
             price=item.medicine.price
         )
+
+        item.medicine.stock -= item.quantity
+        item.medicine.save()
+
+        if item.medicine.stock < 5:
+            Notification.objects.create(
+                user=item.medicine.pharmacy.owner,
+                message=f"Low stock alert: {item.medicine.name}"
+            )
 
         total += item.medicine.price * item.quantity
 
