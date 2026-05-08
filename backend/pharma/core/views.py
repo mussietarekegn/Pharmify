@@ -442,6 +442,12 @@ def add_to_cart(request):
 
     medicine_id = request.data.get('medicine_id')
     quantity = int(request.data.get('quantity', 1))
+    
+    if quantity <= 0:
+        return Response(
+        {"error": "Quantity must be greater than 0"},
+        status=400
+    )
 
     try:
         medicine = Medicine.objects.get(id=medicine_id)
@@ -683,6 +689,14 @@ def update_order_status(request, order_id):
     except Order.DoesNotExist:
         return Response({"error": "Order not found"}, status=404)
 
+    allowed_statuses = ['pending', 'confirmed', 'delivered', 'cancelled']
+
+    if status not in allowed_statuses:
+        return Response(
+        {"error": "Invalid status"},
+        status=400
+        )
+    
     order.status = status
     order.save()
 
