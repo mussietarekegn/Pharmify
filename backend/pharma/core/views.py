@@ -671,3 +671,19 @@ def recent_activity(request):
             for medicine in latest_medicines
         ]
     })
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def update_order_status(request, order_id):
+    status = request.data.get('status')
+
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=404)
+
+    order.status = status
+    order.save()
+
+    return Response({"message": "Order status updated"})
