@@ -687,3 +687,12 @@ def update_order_status(request, order_id):
     order.save()
 
     return Response({"message": "Order status updated"})
+
+@api_view(['GET'])
+def top_medicines(request):
+    medicines = Medicine.objects.annotate(
+        review_count=Count('reviews')
+    ).order_by('-review_count')[:10]
+
+    serializer = MedicineSerializer(medicines, many=True, context={'request': request})
+    return Response(serializer.data)
