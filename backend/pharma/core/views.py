@@ -192,7 +192,48 @@ class PharmacyViewSet(viewsets.ModelViewSet):
         instance.delete()
     
 genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash")
+
+# @api_view(['POST'])
+# def ai_guide(request):
+#     symptoms = request.data.get('symptoms')
+
+#     if not symptoms:
+#         return Response(
+#             {'error': 'Symptoms are required'},
+#             status=400
+#         )
+    
+#     prompt = f"""
+#     You are a medical assistant AI.
+
+#     The user symptoms are:
+#     {symptoms}
+
+#     Give:
+#     1. Possible condition
+#     2. Recommended medicine category
+#     3. Whether hospital visit is recommended
+
+#     IMPORTANT:
+#     - This is not professional medical advice.
+#     - Encourage doctor consultation for serious symptoms.
+#     - Keep response short and clear.
+#     """
+
+#     try:
+
+#         response = model.generate_content(prompt)
+
+#         return Response({
+#             "response": response.text
+#         })
+    
+#     except Exception as e:
+#         return Response(
+#             {"error":str(e)},
+#             status=500
+#         )
 
 @api_view(['POST'])
 def ai_guide(request):
@@ -203,37 +244,52 @@ def ai_guide(request):
             {'error': 'Symptoms are required'},
             status=400
         )
-    
+
     prompt = f"""
     You are a medical assistant AI.
 
-    The user symptoms are:
+    Symptoms:
     {symptoms}
 
     Give:
     1. Possible condition
     2. Recommended medicine category
     3. Whether hospital visit is recommended
-
-    IMPORTANT:
-    - This is not professional medical advice.
-    - Encourage doctor consultation for serious symptoms.
-    - Keep response short and clear.
     """
 
     try:
-
         response = model.generate_content(prompt)
 
         return Response({
-            "response": response.text
+            "response": response.text,
+            "ai_powered": True
         })
-    
-    except Exception as e:
-        return Response(
-            {"error":str(e)},
-            status=500
-        )
+
+    except Exception:
+
+        fallback_response = f"""
+Possible condition:
+- Common cold
+- Mild flu
+- Fever-related illness
+
+Recommended medicine category:
+- Pain relievers
+- Fever reducers
+- Hydration support
+
+Hospital visit:
+- Recommended if symptoms worsen or continue.
+
+Symptoms entered:
+{symptoms}
+"""
+
+        return Response({
+            "response": fallback_response,
+            "ai_powered": False,
+            "message": "Fallback response used because AI service is unavailable."
+        })
 
 @api_view(['POST'])
 def google_login(request):
@@ -442,7 +498,7 @@ def add_to_cart(request):
 
     medicine_id = request.data.get('medicine_id')
     quantity = int(request.data.get('quantity', 1))
-    
+
     if quantity <= 0:
         return Response(
         {"error": "Quantity must be greater than 0"},

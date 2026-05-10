@@ -33,13 +33,13 @@ class MedicineSerializer(serializers.ModelSerializer):
     class Meta:
         model = Medicine
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['pharmacy', 'created_at', 'updated_at']
     
     def get_image_url(self, obj):
         request = self.context.get('request')
 
         if obj.image and request:
-            return request.build_absolute_url(obj.image.url)
+            return request.build_absolute_uri(obj.image.url)
 
         return None
     
@@ -105,7 +105,7 @@ class CartSerializer(serializers.ModelSerializer):
         model = Cart
         fields = '__all__'
     total_price = serializers.SerializerMethodField()
-    
+
     def get_total_price(self, obj):
 
         total = 0
