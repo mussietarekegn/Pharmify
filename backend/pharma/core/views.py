@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from .models import Medicine,Notification,User,Pharmacy,Favorite,OrderItem,Order,Cart,CartItem,Review
-from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer,CartSerializer,ReviewSerializer
+from .serializers import MedicineSerializer,NotificationSerializer,PharmacySerializer,FavoriteSerializer,OrderItemSerializer,OrderSerializer,CartSerializer,ReviewSerializer,RegisterSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .permissions import IsOwner,IsVerifiedOwner,IsAdmin
 from django.db.models import Q
@@ -766,3 +766,26 @@ def top_medicines(request):
 
     serializer = MedicineSerializer(medicines, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+def register_user(request):
+
+    serializer = RegisterSerializer(data=request.data)
+
+    if serializer.is_valid():
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+            }
+        })
+
+    return Response(serializer.errors, status=400)

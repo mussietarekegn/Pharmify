@@ -1,6 +1,6 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet,my_favorites,toggle_favorite,create_order,my_orders,pharmacy_orders,add_to_cart,view_cart,remove_from_cart,medicine_reviews,add_review,admin_dashboard,verify_pharmacy,all_orders,recent_activity,update_order_status,top_medicines
+from .views import MedicineViewSet,update_location,NotificationViewSet,ai_guide,google_login,owner_dashboard,PharmacyViewSet,my_favorites,toggle_favorite,create_order,my_orders,pharmacy_orders,add_to_cart,view_cart,remove_from_cart,medicine_reviews,add_review,admin_dashboard,verify_pharmacy,all_orders,recent_activity,update_order_status,top_medicines,register_user
 
 
 router = DefaultRouter()
@@ -30,5 +30,6 @@ urlpatterns = [
     path('admin/recent-activity/', recent_activity),
     path('admin/orders/<int:order_id>/status/', update_order_status),
     path('top-medicines/', top_medicines),
+    path('register/', register_user),
 ]
 
