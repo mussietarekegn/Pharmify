@@ -1,28 +1,107 @@
-@import "tailwindcss";
-
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-body{
-  background:#0f172a;
-  color:white;
-  font-family:Arial, Helvetica, sans-serif;
+body {
+  background: #0f172a;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-a{
-  text-decoration:none;
-  color:inherit;
-}
-
-button{
-  cursor:pointer;
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 input,
 select,
-textarea{
-  outline:none;
+button,
+textarea {
+  font: inherit;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.auth-card {
+  background: #1e293b;
+  padding: 40px;
+  width: 420px;
+  border-radius: 16px;
+  border: 1px solid #334155;
+}
+
+.auth-title {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.auth-subtitle {
+  color: #94a3b8;
+  margin-bottom: 25px;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: white;
+}
+
+.auth-button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.auth-button:hover {
+  background: #1d4ed8;
+}
+
+.google-btn {
+  margin-top: 14px;
+  background: white;
+  color: black;
+}
+
+.role-select {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: white;
+}
+
+.error-text {
+  color: #ef4444;
+  margin-bottom: 10px;
+}
+
+.success-text {
+  color: #22c55e;
+  margin-bottom: 10px;
 }
