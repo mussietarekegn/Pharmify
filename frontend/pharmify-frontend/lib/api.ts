@@ -1,6 +1,14 @@
-const BASE_URL = "https://pharmify-jugv.onrender.com/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+"https://pharmify-jugv.onrender.com/api";
 
-export async function getMedicines(filters = {}) {
+type MedicineFilters = {
+  search?: string;
+  category?: string;
+  min_price?: string;
+  max_price?: string;
+};
+
+export async function getMedicines(filters: MedicineFilters = {}) {
   const params = new URLSearchParams();
 
   if (filters.search) params.append("search", filters.search);
@@ -8,7 +16,12 @@ export async function getMedicines(filters = {}) {
   if (filters.min_price) params.append("min_price", filters.min_price);
   if (filters.max_price) params.append("max_price", filters.max_price);
 
-  const res = await fetch(`${BASE_URL}/medicines/?${params.toString()}`);
+  const queryString = params.toString();
+  const url = queryString
+    ? `${BASE_URL}/medicines/?${queryString}`
+    : `${BASE_URL}/medicines/`;
+
+  const res = await fetch(url);
 
   if (!res.ok) {
     throw new Error("Failed to fetch medicines");
