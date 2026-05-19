@@ -197,8 +197,10 @@ def ai_guide(request):
         response = model.generate_content(prompt)
         return Response({"response": response.text, "ai_powered": True})
 
-    except Exception:
+    except Exception as e:
         fallback_response = f"""
+ERROR: {str(e)}
+
 Possible condition:
 - Common cold
 - Mild flu
