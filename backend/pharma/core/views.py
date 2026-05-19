@@ -21,7 +21,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Count
 from .pagination import MedicinePagination
 from rest_framework.exceptions import PermissionDenied
-
+from django.contrib.postgres.search import TrigramSimilarity
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -74,13 +74,13 @@ class MedicineViewSet(viewsets.ModelViewSet):
 
         if location:
             queryset = queryset.filter(pharmacy__location__icontains=location)
-        elif user.is_authenticated and user.latitude and user.longitude:
-            queryset = queryset.filter(pharmacy__location__icontains="Addis")
 
         if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) | Q(description__icontains=search)
-            )
+            queryset = queryset.annotate(
+                similarity=TrigramSimilarity('name', search)
+            ).filter(
+                Q(name__icontains=search) | Q(description__icontains=search) | Q(similarity__gt=0.15)
+            ).order_by('-similarity')
 
         if min_price:
             queryset = queryset.filter(price__gte=min_price)
@@ -171,7 +171,7 @@ class PharmacyViewSet(viewsets.ModelViewSet):
 
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 
 @api_view(['POST'])
