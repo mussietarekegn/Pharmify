@@ -28,6 +28,9 @@ class MedicineSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
+    pharmacy_name = serializers.CharField(source='pharmacy.name', read_only=True)
+    pharmacy_location = serializers.CharField(source='pharmacy.location', read_only=True)
+    owner_phone = serializers.CharField(source='pharmacy.owner.phone', read_only=True)
 
     class Meta:
         model = Medicine
