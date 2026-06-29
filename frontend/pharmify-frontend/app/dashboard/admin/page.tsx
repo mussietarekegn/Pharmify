@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingUser, setDeletingUser] = useState<number | null>(null);
+  const [deletingPharmacy, setDeletingPharmacy] = useState<number | null>(null);
 
   // Modals
   const [licenseModal, setLicenseModal] = useState<{ url: string; name: string } | null>(null);
@@ -144,6 +145,18 @@ export default function AdminDashboard() {
     setDeletingUser(null);
   }
 
+  async function handleDeletePharmacy(pharmacyId: number, pharmacyName: string) {
+    if (!confirm(`Are you sure you want to permanently delete "${pharmacyName}"? This will also remove all their medicines. This cannot be undone.`)) return;
+    setDeletingPharmacy(pharmacyId);
+    try {
+      await api.deletePharmacy(pharmacyId);
+      setPharmacies(pharmacies.filter(p => p.id !== pharmacyId));
+    } catch (e: any) {
+      alert(e.message || 'Error deleting pharmacy');
+    }
+    setDeletingPharmacy(null);
+  }
+
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem', background: 'var(--bg-color)' }}>
       <span className="spinner" style={{ borderColor: 'rgba(0,0,0,0.1)', borderTopColor: 'var(--brand)', width: 40, height: 40, borderWidth: 3 }} />
@@ -187,11 +200,28 @@ export default function AdminDashboard() {
             </div>
             <div style={{ flex: 1, overflow: 'auto', padding: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-color)' }}>
               {licenseModal.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                <img src={licenseModal.url} alt="License" style={{ maxWidth: '100%', borderRadius: '16px', boxShadow: 'var(--shadow-md)' }} />
+                <img
+                  src={licenseModal.url}
+                  alt="License"
+                  style={{ maxWidth: '100%', borderRadius: '16px', boxShadow: 'var(--shadow-md)' }}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector('.img-error-msg')) {
+                      const msg = document.createElement('div');
+                      msg.className = 'img-error-msg';
+                      msg.style.cssText = 'text-align:center;padding:2rem;';
+                      msg.innerHTML = `<p style="color:#ef4444;font-weight:600;margin-bottom:1rem;">⚠️ Image could not be loaded</p><p style="color:#6b7280;font-size:0.85rem;margin-bottom:1rem;">The file may have been removed from the server.</p><a href="${licenseModal.url}" target="_blank" style="color:#0d9488;font-weight:600;">Try Direct URL →</a>`;
+                      parent.appendChild(msg);
+                    }
+                  }}
+                />
               ) : (
                 <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--surface)', borderRadius: '20px', border: '1px solid var(--border-light)' }}>
                   <FileText size={48} color="var(--brand)" style={{ marginBottom: '1.5rem' }} />
-                  <p style={{ color: 'var(--text-main)', marginBottom: '1.5rem', fontWeight: 600 }}>Document is not an image.</p>
+                  <p style={{ color: 'var(--text-main)', marginBottom: '0.75rem', fontWeight: 600 }}>License Document</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Click below to open the document. If it shows "Not Found", the file was not retained on the server after deployment.</p>
                   <a
                     href={licenseModal.url}
                     target="_blank"
@@ -391,7 +421,7 @@ export default function AdminDashboard() {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)', flexWrap: 'wrap', gap: '0.5rem' }}>
                       {ph.license_document_url ? (
                         <button
                           onClick={() => setLicenseModal({ url: ph.license_document_url!, name: ph.name })}
@@ -404,26 +434,41 @@ export default function AdminDashboard() {
                         <span style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 600, padding: '0.6rem 1rem', background: '#fee2e2', borderRadius: '10px' }}>No Document</span>
                       )}
 
-                      {!ph.is_verified && (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            onClick={() => handleVerify(ph.id)}
-                            disabled={verifying === ph.id}
-                            className="btn-primary"
-                            style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem' }}
-                          >
-                            {verifying === ph.id ? <span className="spinner" /> : 'Approve'}
-                          </button>
-                          <button
-                            onClick={() => handleReject(ph.id)}
-                            disabled={verifying === ph.id}
-                            className="btn-secondary"
-                            style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fee2e2', background: '#fef2f2' }}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {!ph.is_verified && (
+                          <>
+                            <button
+                              onClick={() => handleVerify(ph.id)}
+                              disabled={verifying === ph.id}
+                              className="btn-primary"
+                              style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem' }}
+                            >
+                              {verifying === ph.id ? <span className="spinner" /> : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => handleReject(ph.id)}
+                              disabled={verifying === ph.id}
+                              className="btn-secondary"
+                              style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fee2e2', background: '#fef2f2' }}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleDeletePharmacy(ph.id, ph.name)}
+                          disabled={deletingPharmacy === ph.id}
+                          title="Delete Pharmacy"
+                          style={{
+                            background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '10px',
+                            padding: '0.6rem 0.9rem', cursor: 'pointer', color: '#dc2626',
+                            display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem',
+                            fontWeight: 600, transition: 'all 0.2s'
+                          }}
+                        >
+                          {deletingPharmacy === ph.id ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : <><Trash2 size={15} /> Delete</>}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

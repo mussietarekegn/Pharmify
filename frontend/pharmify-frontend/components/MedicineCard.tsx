@@ -48,10 +48,18 @@ export default function MedicineCard({ medicine, delay = 0, onClick }: Props) {
         {/* Image */}
         <div style={{ height: 180, background: 'linear-gradient(135deg,#f0fdfa,#dcfce7)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {medicine.image_url ? (
-            <img src={medicine.image_url} alt={medicine.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <div style={{ fontSize: '3.5rem' }}>💊</div>
-          )}
+            <img
+              src={medicine.image_url}
+              alt={medicine.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div style={{ fontSize: '3.5rem', display: medicine.image_url ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>💊</div>
           <div style={{ position: 'absolute', top: 10, right: 10, background: 'white', borderRadius: 999, padding: '.2rem .6rem', fontSize: '.72rem', fontWeight: 600, color: '#0f766e', border: '1px solid #d1ebe6' }}>
             {medicine.category}
           </div>

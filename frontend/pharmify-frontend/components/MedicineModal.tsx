@@ -37,10 +37,18 @@ export default function MedicineModal({ medicine, onClose }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ height: 240, background: 'linear-gradient(135deg,#f0fdfa,#dcfce7)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {medicine.image_url ? (
-              <img src={medicine.image_url} alt={medicine.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <div style={{ fontSize: '5rem' }}>💊</div>
-            )}
+              <img
+                src={medicine.image_url}
+                alt={medicine.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div style={{ fontSize: '5rem', display: medicine.image_url ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>💊</div>
             <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', background: 'white', borderRadius: 999, padding: '.3rem .8rem', fontSize: '.8rem', fontWeight: 600, color: '#0f766e', border: '1px solid #d1ebe6' }}>
               {medicine.category}
             </div>

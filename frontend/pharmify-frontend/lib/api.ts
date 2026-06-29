@@ -241,4 +241,9 @@ export const api = {
     request<{ message: string }>(`/admin/users/${user_id}/`, {
       method: 'DELETE',
     }),
+
+  deletePharmacy: (pharmacy_id: number) =>
+    request<{ message: string }>(`/admin/delete-pharmacy/${pharmacy_id}/`, {
+      method: 'DELETE',
+    }),
 };

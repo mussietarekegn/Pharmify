@@ -204,7 +204,6 @@ class PharmacyViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 @api_view(['POST'])
@@ -227,31 +226,35 @@ def ai_guide(request):
     """
 
     try:
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.5-flash',
             contents=prompt,
         )
         return Response({"response": response.text, "ai_powered": True})
 
     except Exception as e:
-        fallback_response = f"""
-ERROR: {str(e)}
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Gemini AI error: {str(e)}")
+        fallback_response = f"""Based on common symptoms, here is general guidance:
 
-Possible condition:
-- Common cold
-- Mild flu
+Possible conditions:
+- Common cold or flu
 - Fever-related illness
+- Respiratory infection
 
-Recommended medicine category:
-- Pain relievers
+Recommended medicine categories:
+- Pain relievers (e.g., paracetamol)
 - Fever reducers
 - Hydration support
 
-Hospital visit:
-- Recommended if symptoms worsen or continue.
+Hospital visit recommendation:
+- Recommended if symptoms worsen or persist beyond 3 days.
 
-Symptoms entered:
-{symptoms}
+Note: This is a general fallback response. Please consult a licensed medical professional for accurate diagnosis.
+
+Symptoms entered: {symptoms}
 """
         return Response({
             "response": fallback_response,
@@ -275,27 +278,48 @@ def google_login(request):
         )
 
         email = idinfo.get('email')
-        name = idinfo.get('name')
+        name = idinfo.get('name', '')
+        given_name = idinfo.get('given_name', name)
 
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                'username': email,
-                'first_name': name,
-                'role': 'customer'
-            }
-        )
+        # Generate a unique username from email
+        base_username = email.split('@')[0]
+        
+        # Try to get existing user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Create new user with unique username
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=given_name,
+                password=None,
+                role='customer'
+            )
 
         refresh = RefreshToken.for_user(user)
 
+        # Build access token with role
+        access = refresh.access_token
+        role = 'admin' if user.is_superuser else user.role
+        access['role'] = role
+        access['username'] = user.username
+        access['email'] = user.email
+
         return Response({
-            'access': str(refresh.access_token),
+            'access': str(access),
             'refresh': str(refresh),
             'user': {
                 'id': user.id,
                 'email': user.email,
                 'username': user.username,
-                'role': user.role,
+                'role': role,
                 'phone': user.phone,
             }
         })
@@ -683,3 +707,14 @@ def unverified_pharmacies(request):
             "owner_email": p.owner.email,
         })
     return Response(data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def delete_pharmacy(request, pharmacy_id):
+    try:
+        pharmacy = Pharmacy.objects.get(id=pharmacy_id)
+        pharmacy.delete()
+        return Response({"message": "Pharmacy deleted successfully"})
+    except Pharmacy.DoesNotExist:
+        return Response({"error": "Pharmacy not found"}, status=404)
