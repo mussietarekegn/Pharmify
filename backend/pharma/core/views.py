@@ -305,12 +305,16 @@ def google_login(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsVerifiedOwner])
+@permission_classes([IsAuthenticated, IsOwner])
 def owner_dashboard(request):
-    pharmacy = request.user.pharmacy
+    try:
+        pharmacy = request.user.pharmacy
+    except Exception:
+        return Response({"error": "No pharmacy registered"}, status=404)
+
     medicines = Medicine.objects.filter(pharmacy=pharmacy)
     total_medicines = medicines.count()
-    latest_medicines = medicines.order_by('-created_at')[:5]
+    latest_medicines = medicines.order_by('-created_at')[:10]
     categories = medicines.values('category').annotate(total=Count('category'))
 
     return Response({
@@ -322,8 +326,11 @@ def owner_dashboard(request):
             {
                 "id": medicine.id,
                 "name": medicine.name,
-                "price": medicine.price,
+                "price": str(medicine.price),
                 "category": medicine.category,
+                "description": medicine.description,
+                "stock": medicine.stock,
+                "image": request.build_absolute_uri(medicine.image.url) if medicine.image else None,
             }
             for medicine in latest_medicines
         ],

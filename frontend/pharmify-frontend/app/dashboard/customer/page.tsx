@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import type { Order, Medicine } from '@/types';
-import { ShoppingBag, Clock, CheckCircle, XCircle, Truck, Search, Package, MapPin, Zap } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, XCircle, Truck, Search, Package, MapPin, Zap, Bot, Send, Activity, AlertTriangle } from 'lucide-react';
 import { authService } from '@/services/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -10,6 +10,13 @@ import MedicineCard from '@/components/MedicineCard';
 import SearchBar from '@/components/SearchBar';
 import LocationModal from '@/components/LocationModal';
 import MedicineModal from '@/components/MedicineModal';
+import { useRef } from 'react';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  ai_powered?: boolean;
+}
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   pending: <Clock size={16} />,
@@ -20,7 +27,7 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 
 export default function CustomerDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'search' | 'orders'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'orders' | 'ai'>('search');
   
   // Orders State
   const [orders, setOrders] = useState<Order[]>([]);
@@ -37,7 +44,14 @@ export default function CustomerDashboard() {
   
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
-  
+
+  // AI Guide state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { role: 'assistant', text: "Hello! I'm your Pharmify AI health assistant. Describe your symptoms and I'll suggest possible conditions and medicine categories. Remember: always consult a doctor for serious concerns.", ai_powered: true }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
   const user = authService.getUser();
 
   useEffect(() => {
@@ -86,6 +100,24 @@ export default function CustomerDashboard() {
     loadMedicines(searchParams, next);
   }
 
+  async function sendAiMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+    const text = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', text }]);
+    setChatLoading(true);
+    try {
+      const res = await api.aiGuide(text);
+      setChatMessages(prev => [...prev, { role: 'assistant', text: res.response, ai_powered: res.ai_powered }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, the AI service is unavailable. Please try again later.', ai_powered: false }]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }
+
   const isSearching = Object.keys(searchParams).length > 0;
   const totalSpent = orders.reduce((s, o) => s + Number(o.total_price), 0);
   const delivered = orders.filter(o => o.status === 'delivered').length;
@@ -109,39 +141,31 @@ export default function CustomerDashboard() {
           </div>
           
           {/* Dashboard Tabs */}
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button 
-              onClick={() => setActiveTab('search')}
-              style={{ 
-                padding: '0.75rem 1.5rem', 
-                borderRadius: '12px',
-                border: 'none',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: activeTab === 'search' ? 'var(--brand)' : 'transparent',
-                color: activeTab === 'search' ? 'white' : 'var(--text-muted)',
-                transition: 'all 0.2s ease'
-              }}>
-              <Search size={18} /> Find Medicines
-            </button>
-            <button 
-              onClick={() => setActiveTab('orders')}
-              style={{ 
-                padding: '0.75rem 1.5rem', 
-                borderRadius: '12px',
-                border: 'none',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: activeTab === 'orders' ? 'var(--brand)' : 'transparent',
-                color: activeTab === 'orders' ? 'white' : 'var(--text-muted)',
-                transition: 'all 0.2s ease'
-              }}>
-              <Package size={18} /> My Orders
-            </button>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {[
+              { key: 'search', label: 'Find Medicines', icon: <Search size={17} /> },
+              { key: 'orders', label: 'My Orders', icon: <Package size={17} /> },
+              { key: 'ai', label: 'AI Guide', icon: <Bot size={17} /> },
+            ].map(t => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key as any)}
+                style={{
+                  padding: '0.7rem 1.35rem',
+                  borderRadius: '12px',
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '0.45rem',
+                  background: activeTab === t.key ? 'var(--brand)' : 'var(--bg-color)',
+                  color: activeTab === t.key ? 'white' : 'var(--text-muted)',
+                  border: activeTab === t.key ? 'none' : '1px solid var(--border-light)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -286,7 +310,91 @@ export default function CustomerDashboard() {
             )}
           </div>
         )}
+        {/* TAB: AI GUIDE */}
+        {activeTab === 'ai' && (
+          <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 260px)', minHeight: 500 }}>
+            <div style={{ background: 'linear-gradient(135deg, #0a1a16, #0f766e)', borderRadius: '20px 20px 0 0', padding: '1.5rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: 44, height: 44, background: 'rgba(255,255,255,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Bot size={22} color="#4ade80" />
+              </div>
+              <div>
+                <h2 style={{ color: 'white', fontWeight: 800, fontSize: '1.1rem' }}>AI Health Guide</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                  <Activity size={12} color="#4ade80" />
+                  <span style={{ color: '#86efac', fontSize: '0.78rem', fontWeight: 600 }}>Powered by Gemini AI</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--border-light)' }}>
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: msg.role === 'user' ? 'linear-gradient(135deg, #0d9488, #16a34a)' : '#0a1a16', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {msg.role === 'user'
+                      ? <span style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem' }}>You</span>
+                      : <Bot size={17} color="#4ade80" />}
+                  </div>
+                  <div style={{ maxWidth: '80%' }}>
+                    <div style={{
+                      background: msg.role === 'user' ? 'linear-gradient(135deg, #0d9488, #16a34a)' : 'var(--bg-color)',
+                      color: msg.role === 'user' ? 'white' : 'var(--text-main)',
+                      borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                      padding: '0.9rem 1.1rem',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      border: msg.role === 'assistant' ? '1px solid var(--border-light)' : 'none',
+                      lineHeight: 1.7, fontSize: '0.9rem', whiteSpace: 'pre-wrap'
+                    }}>{msg.text}</div>
+                    {msg.role === 'assistant' && msg.ai_powered === false && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.3rem', color: '#f59e0b', fontSize: '0.73rem', fontWeight: 600 }}>
+                        <AlertTriangle size={12} /> Fallback (AI unavailable)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#0a1a16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bot size={17} color="#4ade80" />
+                  </div>
+                  <div style={{ background: 'var(--bg-color)', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '0.9rem 1.1rem', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: '#0d9488', animation: `pulse 1.2s ${i*0.2}s infinite` }} />)}
+                  </div>
+                </div>
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Input */}
+            <form onSubmit={sendAiMessage} style={{ display: 'flex', gap: '0.75rem', padding: '1rem 1.25rem', background: 'var(--surface)', borderTop: '1px solid var(--border-light)', borderRadius: '0 0 20px 20px', border: '1px solid var(--border-light)', borderTop: 'none' }}>
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Describe your symptoms, e.g. headache, fever, sore throat…"
+                style={{ flex: 1, border: '1.5px solid var(--border-light)', borderRadius: '12px', padding: '0.8rem 1.1rem', fontSize: '0.92rem', outline: 'none', fontFamily: 'var(--font-body)', background: 'var(--bg-color)', color: 'var(--text-main)' }}
+                onFocus={e => (e.target.style.borderColor = 'var(--brand)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border-light)')}
+              />
+              <button type="submit" disabled={chatLoading || !chatInput.trim()} className="btn-primary" style={{ padding: '0.8rem 1.25rem' }}>
+                <Send size={18} />
+              </button>
+            </form>
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '0.5rem', paddingBottom: '0.5rem' }}>
+              ⚕️ For guidance only — always consult a licensed medical professional.
+            </p>
+          </div>
+        )}
+
       </div>
     </div>
   );
 }
+
+/* Inline animation for AI bubbles */
+const _style = typeof document !== 'undefined' && !document.getElementById('ai-pulse-style') && (() => {
+  const s = document.createElement('style');
+  s.id = 'ai-pulse-style';
+  s.textContent = '@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }';
+  document.head.appendChild(s);
+})();

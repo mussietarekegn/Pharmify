@@ -85,6 +85,15 @@ export const api = {
   deleteMedicine: (id: number) =>
     request(`/medicines/${id}/`, { method: 'DELETE' }),
 
+  updateMedicine: (id: number, data: FormData) => {
+    const token = getToken();
+    return fetch(`${BASE}/medicines/${id}/`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: data,
+    }).then(r => r.ok ? r.json() : r.json().then((e: any) => Promise.reject(new Error(e.detail || e.error || 'Update failed'))));
+  },
+
   topMedicines: () =>
     request<import('@/types').Medicine[]>('/top-medicines/'),
 

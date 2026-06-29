@@ -71,9 +71,10 @@ export default function OwnerOnboarding() {
       }
 
       setSuccess(true);
+      // Redirect to owner dashboard - it will show 'waiting for approval' since not verified yet
       setTimeout(() => {
         router.push('/dashboard/owner');
-      }, 2000);
+      }, 2500);
 
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred during onboarding.');
@@ -84,13 +85,18 @@ export default function OwnerOnboarding() {
 
   if (success) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-        <div className="animate-fadeUp" style={{ background: 'var(--surface)', padding: '3rem', borderRadius: '24px', textAlign: 'center', maxWidth: 460, boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
-          <div style={{ display: 'inline-flex', background: '#dcfce7', padding: '1rem', borderRadius: '50%', marginBottom: '1.5rem' }}>
-            <CheckCircle2 size={48} color="#16a34a" />
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: 'var(--bg-color)' }}>
+        <div className="animate-fadeUp" style={{ background: 'var(--surface)', padding: '3rem', borderRadius: '24px', textAlign: 'center', maxWidth: 500, boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'inline-flex', background: '#fef3c7', padding: '1.25rem', borderRadius: '50%', marginBottom: '1.5rem' }}>
+            <CheckCircle2 size={52} color="#d97706" />
           </div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem' }}>Profile Created!</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Redirecting you to your dashboard...</p>
+          <h1 style={{ fontSize: '1.9rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text-main)' }}>Application Submitted!</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1.7, marginBottom: '0.5rem' }}>
+            Your pharmacy has been registered and is now <strong>pending admin verification</strong>.
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+            The admin will review your license document. Once approved, you will be able to post medicines and manage your pharmacy. Redirecting you now…
+          </p>
         </div>
       </div>
     );
