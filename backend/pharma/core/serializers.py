@@ -31,11 +31,23 @@ class MedicineSerializer(serializers.ModelSerializer):
     pharmacy_name = serializers.CharField(source='pharmacy.name', read_only=True)
     pharmacy_location = serializers.CharField(source='pharmacy.location', read_only=True)
     owner_phone = serializers.CharField(source='pharmacy.owner.phone', read_only=True)
+    match_percentage = serializers.SerializerMethodField()
+    distance_km = serializers.SerializerMethodField()
 
     class Meta:
         model = Medicine
         fields = '__all__'
         read_only_fields = ['pharmacy', 'created_at', 'updated_at']
+
+    def get_match_percentage(self, obj):
+        if hasattr(obj, 'similarity') and obj.similarity:
+            return round(obj.similarity * 100, 1)
+        return None
+
+    def get_distance_km(self, obj):
+        if hasattr(obj, 'distance_km'):
+            return round(obj.distance_km, 2)
+        return None
 
     def get_image_url(self, obj):
         request = self.context.get('request')

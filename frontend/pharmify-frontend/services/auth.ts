@@ -1,9 +1,28 @@
-import { apiRequest } from "./api"
+export const authService = {
+  saveTokens(access: string, refresh: string, user: object) {
+    sessionStorage.setItem('access_token', access);
+    sessionStorage.setItem('refresh_token', refresh);
+    sessionStorage.setItem('user', JSON.stringify(user));
+  },
 
-export async function registerUser(userData: any) {
-  return apiRequest("/api/register/", "POST", userData)
-}
+  getUser() {
+    if (typeof window === 'undefined') return null;
+    const u = sessionStorage.getItem('user');
+    return u ? JSON.parse(u) : null;
+  },
 
-export async function googleLogin(token: string) {
-  return apiRequest("/api/google-login/", "POST", { token })
-}
+  getAccess(): string | null {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('access_token');
+  },
+
+  logout() {
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user');
+  },
+
+  isLoggedIn(): boolean {
+    return !!this.getAccess();
+  },
+};

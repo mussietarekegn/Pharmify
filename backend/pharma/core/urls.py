@@ -7,6 +7,7 @@ from .views import (
     add_to_cart, view_cart, remove_from_cart, medicine_reviews,
     add_review, admin_dashboard, verify_pharmacy, all_orders,
     recent_activity, update_order_status, top_medicines, register_user,
+    list_users, delete_user, unverified_pharmacies, reject_pharmacy,
     CustomTokenObtainPairView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -37,9 +38,13 @@ urlpatterns = [
     path('reviews/<int:medicine_id>/', medicine_reviews),
     path('admin/dashboard/', admin_dashboard),
     path('admin/verify-pharmacy/<int:pharmacy_id>/', verify_pharmacy),
+    path('admin/reject-pharmacy/<int:pharmacy_id>/', reject_pharmacy),
     path('admin/orders/', all_orders),
     path('admin/recent-activity/', recent_activity),
     path('admin/orders/<int:order_id>/status/', update_order_status),
     path('top-medicines/', top_medicines),
     path('register/', register_user),
+    path('admin/users/', list_users),
+    path('admin/users/<int:user_id>/', delete_user),
+    path('admin/unverified-pharmacies/', unverified_pharmacies),
 ]

@@ -13,12 +13,12 @@ from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from django.conf import settings
-import google.generativeai as genai
+from google import genai
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from django.db.models import Count
+from django.db.models import Count, Avg
 from .pagination import MedicinePagination
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.postgres.search import TrigramSimilarity
@@ -53,6 +53,9 @@ def update_location(request):
     })
 
 
+from django.db.models.functions import ACos, Cos, Radians, Sin
+from django.db.models import F, ExpressionWrapper, FloatField
+
 class MedicineViewSet(viewsets.ModelViewSet):
     queryset = Medicine.objects.select_related('pharmacy').all()
     serializer_class = MedicineSerializer
@@ -63,6 +66,24 @@ class MedicineViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Medicine.objects.select_related('pharmacy').prefetch_related('reviews')
+        
+        user = self.request.user
+        if user.is_authenticated and user.latitude is not None and user.longitude is not None:
+            # Haversine formula
+            lat1 = Radians(user.latitude)
+            lon1 = Radians(user.longitude)
+            lat2 = Radians(F('pharmacy__latitude'))
+            lon2 = Radians(F('pharmacy__longitude'))
+            
+            queryset = queryset.annotate(
+                distance_km=ExpressionWrapper(
+                    6371 * ACos(
+                        Cos(lat1) * Cos(lat2) * Cos(lon2 - lon1) +
+                        Sin(lat1) * Sin(lat2)
+                    ),
+                    output_field=FloatField()
+                )
+            )
 
         search = self.request.query_params.get('search')
         min_price = self.request.query_params.get('min_price')
@@ -70,7 +91,8 @@ class MedicineViewSet(viewsets.ModelViewSet):
         category = self.request.query_params.get('category')
         location = self.request.query_params.get('location')
         sort = self.request.query_params.get('sort')
-        user = self.request.user
+        min_rating = self.request.query_params.get('min_rating')
+        max_distance = self.request.query_params.get('max_distance')
 
         if location:
             queryset = queryset.filter(pharmacy__location__icontains=location)
@@ -90,11 +112,23 @@ class MedicineViewSet(viewsets.ModelViewSet):
 
         if category:
             queryset = queryset.filter(category__icontains=category)
+            
+        if min_rating:
+            queryset = queryset.annotate(avg_rating=Avg('reviews__rating')).filter(avg_rating__gte=min_rating)
+            
+        if max_distance and user.is_authenticated and user.latitude:
+            queryset = queryset.filter(distance_km__lte=max_distance)
 
         if sort == 'price_low':
             queryset = queryset.order_by('price')
         elif sort == 'price_high':
             queryset = queryset.order_by('-price')
+        elif sort == 'distance' and user.is_authenticated and user.latitude:
+            queryset = queryset.order_by('distance_km')
+        elif sort == 'rating':
+            if not min_rating:
+                queryset = queryset.annotate(avg_rating=Avg('reviews__rating'))
+            queryset = queryset.order_by('-avg_rating')
         elif sort == 'newest':
             queryset = queryset.order_by('-created_at')
 
@@ -170,8 +204,7 @@ class PharmacyViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-pro")
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 @api_view(['POST'])
@@ -194,7 +227,10 @@ def ai_guide(request):
     """
 
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         return Response({"response": response.text, "ai_powered": True})
 
     except Exception as e:
@@ -500,6 +536,16 @@ def verify_pharmacy(request, pharmacy_id):
     pharmacy.save()
     return Response({"message": "Pharmacy verified"})
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def reject_pharmacy(request, pharmacy_id):
+    try:
+        pharmacy = Pharmacy.objects.get(id=pharmacy_id)
+        pharmacy.delete()
+        return Response({"message": "Pharmacy rejected and deleted"})
+    except Pharmacy.DoesNotExist:
+        return Response({"error": "Pharmacy not found"}, status=404)
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsAdmin])
@@ -583,3 +629,50 @@ def register_user(request):
         })
 
     return Response(serializer.errors, status=400)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def list_users(request):
+    users = User.objects.all().order_by('-date_joined')
+    data = []
+    for user in users:
+        data.append({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "is_active": user.is_active,
+            "date_joined": user.date_joined,
+        })
+    return Response(data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def delete_user(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        if user.is_superuser:
+            return Response({"error": "Cannot delete superuser"}, status=400)
+        user.delete()
+        return Response({"message": "User deleted successfully"})
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def unverified_pharmacies(request):
+    pharmacies = Pharmacy.objects.filter(is_verified=False).order_by('-created_at')
+    data = []
+    for p in pharmacies:
+        data.append({
+            "id": p.id,
+            "name": p.name,
+            "location": p.location,
+            "license_document": request.build_absolute_uri(p.license_document.url) if p.license_document else None,
+            "owner_username": p.owner.username,
+            "owner_email": p.owner.email,
+        })
+    return Response(data)

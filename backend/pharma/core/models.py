@@ -24,6 +24,8 @@ class Pharmacy(models.Model):
     license_document = models.FileField(upload_to='licenses/')
     is_verified = models.BooleanField(default=False)
     location = models.CharField(max_length=255)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

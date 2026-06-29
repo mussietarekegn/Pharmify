@@ -1,18 +1,20 @@
-import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import type { Metadata } from 'next';
+import './globals.css';
+import Navbar from '@/components/Navbar';
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const metadata: Metadata = {
+  title: 'Pharmify — Find Medicines Near You',
+  description: 'Discover local pharmacies, order medicines, and get AI health guidance.',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
         <Navbar />
-        <main>{children}</main>
-        <Footer />
+        <main style={{ paddingTop: '70px', minHeight: '100vh' }}>
+          {children}
+        </main>
       </body>
     </html>
   );
